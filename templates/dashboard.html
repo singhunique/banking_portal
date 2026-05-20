@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Capital - Secure Ledger Workspace</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-surface: #1e293b;
+            --border-color: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-green: #34d399;
+            --accent-error: #f87171;
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: var(--bg-primary); 
+            color: var(--text-main);
+            margin: 0; 
+            padding: 30px; 
+        }
+
+        .navbar { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: var(--bg-surface); 
+            padding: 18px 35px; 
+            border-radius: 12px; 
+            border: 1px solid var(--border-color);
+            margin-bottom: 25px;
+        }
+
+        .brand-title {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--text-main);
+        }
+
+        .brand-title span { color: var(--accent-blue); }
+
+        .navbar a { 
+            color: var(--text-muted); 
+            text-decoration: none; 
+            font-weight: 500; 
+            font-size: 14px;
+            transition: color 0.2s;
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 6px;
+        }
+
+        .navbar a:hover { color: var(--accent-error); border-color: var(--accent-error); }
+
+        .main-grid { 
+            display: grid; 
+            grid-template-columns: 350px 1fr; 
+            gap: 25px; 
+        }
+
+        .panel-card { 
+            background: var(--bg-surface); 
+            padding: 30px; 
+            border-radius: 12px; 
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-card h3 {
+            margin-top: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .balance-metric { 
+            font-size: 38px; 
+            font-weight: 700; 
+            color: var(--accent-green); 
+            margin: 15px 0 5px 0; 
+            font-variant-numeric: tabular-nums;
+        }
+
+        .subtext { font-size: 12px; color: var(--text-muted); margin-bottom: 20px;}
+
+        input[type="text"], input[type="number"] { 
+            width: 100%; 
+            padding: 12px; 
+            margin: 10px 0 18px 0; 
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color); 
+            color: var(--text-main);
+            border-radius: 6px; 
+            box-sizing: border-box; 
+            font-size: 14px;
+        }
+
+        input:focus { outline: none; border-color: var(--accent-blue); }
+
+        .btn-submit { 
+            width: 100%; 
+            padding: 12px; 
+            background: #0284c7; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            font-size: 15px; 
+            font-weight: 600;
+            cursor: pointer; 
+            transition: background 0.2s;
+        }
+
+        .btn-submit:hover { background: #0369a1; }
+
+        .alert-banner { 
+            background: rgba(52, 211, 153, 0.1); 
+            color: var(--accent-green); 
+            border: 1px solid rgba(52, 211, 153, 0.2);
+            padding: 12px 20px; 
+            border-radius: 6px; 
+            margin-bottom: 20px; 
+            font-size: 14px;
+        }
+
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 15px; 
+            font-size: 14px;
+        }
+
+        th, td { 
+            padding: 14px 16px; 
+            text-align: left; 
+            border-bottom: 1px solid var(--border-color); 
+        }
+
+        th { 
+            background-color: rgba(15, 23, 42, 0.4); 
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        tr:hover { background-color: rgba(255,255,255,0.01); }
+
+        .status-verified { color: var(--accent-green); font-weight: 500; }
+        
+        .tampered-row { 
+            background-color: rgba(248, 113, 113, 0.07) !important; 
+        }
+        
+        .tampered-row td { border-bottom-color: rgba(248, 113, 113, 0.2); }
+
+        .status-tampered { 
+            color: var(--accent-error); 
+            font-weight: bold; 
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <div class="brand-title">QUANTUM<span>CAPITAL</span> // Security Node</div>
+    <div>
+        <span style="margin-right: 20px; font-size: 14px;">Operator: <strong style="color: var(--accent-blue);">{{ username }}</strong></span>
+        <a href="/logout">Terminate Session</a>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert-banner">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="main-grid">
+    <!-- Financial Operational Controls -->
+    <div class="panel-card">
+        <h3>Liquid Balance Status</h3>
+        <div class="balance-metric">${{ "%.2f"|format(balance) }}</div>
+        <div class="subtext">Symmetrically Guarded via AES-256 at Rest</div>
+        
+        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 25px 0;">
+        
+        <h3>Clear Cryptographic Transfer</h3>
+        <form action="/transfer" method="POST">
+            <label style="font-size: 12px; color: var(--text-muted);">Target Account Identifier</label>
+            <input type="text" name="recipient" placeholder="Destination Username" required autocomplete="off">
+            
+            <label style="font-size: 12px; color: var(--text-muted);">Transfer Value (USD)</label>
+            <input type="number" name="amount" step="0.01" placeholder="0.00" min="0.01" required>
+            
+            <button type="submit" class="btn-submit">Dispatch Signed Payload</button>
+        </form>
+    </div>
+
+    <!-- Integrity Audit Tracking Workspace -->
+    <div class="panel-card">
+        <h3>Cryptographic Transaction Ledger Matrix</h3>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
+            Real-time validation protocol pipeline comparing system verification blocks against active database HMAC-SHA256 signatures.
+        </p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Origin Node</th>
+                    <th>Target Node</th>
+                    <th>Volume</th>
+                    <th>Timestamp</th>
+                    <th>HMAC Integrity Check</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tx in transactions %}
+                <tr class="{% if tx.tampered %}tampered-row{% endif %}">
+                    <td>{{ tx.sender }}</td>
+                    <td>{{ tx.receiver }}</td>
+                    <td style="font-variant-numeric: tabular-nums;">${{ "%.2f"|format(tx.amount) }}</td>
+                    <td style="color: var(--text-muted);">{{ tx.timestamp }}</td>
+                    <td>
+                        {% if tx.tampered %}
+                            <span class="status-tampered">⚠ CRYPTO MISMAPPED / TAMPERED</span>
+                        {% else %}
+                            <span class="status-verified">✔ Verified (Signature Valid)</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 40px 0;">No secure log vectors currently allocated.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</body>
+</html>

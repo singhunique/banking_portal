@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Capital - Initialize Secure Node</title>
+    <style>
+        /* Sharing the exact same premium dark parameters */
+        :root {
+            --bg-primary: #0f172a;
+            --bg-surface: #1e293b;
+            --border-color: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-error: #f87171;
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: var(--bg-primary); 
+            color: var(--text-main);
+            margin: 0; 
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .register-container {
+            width: 100%;
+            max-width: 420px;
+            background: var(--bg-surface);
+            padding: 40px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+        }
+
+        .brand-header {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+        .brand-title {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin: 0 0 8px 0;
+        }
+
+        .brand-title span { color: var(--accent-blue); }
+
+        .brand-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        input[type="text"], input[type="password"] { 
+            width: 100%; 
+            padding: 12px; 
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color); 
+            color: var(--text-main);
+            border-radius: 6px; 
+            box-sizing: border-box; 
+            font-size: 14px;
+        }
+
+        input:focus { outline: none; border-color: var(--accent-blue); }
+
+        .btn-submit { 
+            width: 100%; 
+            padding: 14px; 
+            background: #0284c7; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            font-size: 15px; 
+            font-weight: 600;
+            cursor: pointer; 
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+
+        .btn-submit:hover { background: #0369a1; }
+
+        .alert-banner { 
+            background: rgba(248, 113, 113, 0.1); 
+            color: var(--accent-error); 
+            border: 1px solid rgba(248, 113, 113, 0.2);
+            padding: 12px; 
+            border-radius: 6px; 
+            margin-bottom: 20px; 
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .footer-link {
+            text-align: center;
+            margin-top: 25px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .footer-link a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+        
+        .footer-link a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<div class="register-container">
+    <div class="brand-header">
+        <div class="brand-title">QUANTUM<span>CAPITAL</span></div>
+        <div class="brand-subtitle">// Initialize Security Credentials</div>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert-banner">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form action="/register" method="POST">
+        <div class="form-group">
+            <label>Request Username Space</label>
+            <input type="text" name="username" placeholder="Create username" required autofocus autocomplete="off">
+        </div>
+        
+        <div class="form-group">
+            <label>Master Password Allocation</label>
+            <input type="password" name="password" placeholder="Create strong password" required>
+        </div>
+        
+        <button type="submit" class="btn-submit">Provision System Access</button>
+    </form>
+
+    <div class="footer-link">
+        Already registered? <a href="/login">Authenticate at session gateway</a>
+    </div>
+</div>
+
+</body>
+</html>
