@@ -3,61 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vault Guard</title>
+    <title>VaultGuard // Registration</title>
     <style>
         :root {
-            --bg-app: #090d16;
-            --bg-card: #111827;
-            --border: #1f2937;
-            --text-primary: #f3f4f6;
-            --text-secondary: #9ca3af;
-            --accent: #38bdf8;
-            --error: #ef4444;
+            --bg-base: #060913;
+            --glass-card: rgba(13, 20, 38, 0.7);
+            --border: rgba(255, 255, 255, 0.08);
+            --border-focus: #10b981;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
         }
 
         body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            background-color: var(--bg-app); 
-            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background-color: var(--bg-base); 
+            color: var(--text-main);
             margin: 0; 
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             overflow: hidden;
+            position: relative;
         }
 
-        .auth-card {
+        .glow-orb {
+            position: absolute;
+            width: 450px;
+            height: 450px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, rgba(0,0,0,0) 70%);
+            filter: blur(70px);
+            z-index: 1;
+            top: -150px;
+            right: -100px;
+            animation: floating 9s infinite alternate ease-in-out;
+        }
+
+        @keyframes floating {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-40px, 30px); }
+        }
+
+        .auth-container {
+            position: relative;
+            z-index: 10;
             width: 100%;
             max-width: 400px;
-            background: var(--bg-card);
-            padding: 40px;
-            border-radius: 16px;
+            background: var(--glass-card);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 45px;
+            border-radius: 24px;
             border: 1px solid var(--border);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.1);
         }
 
-        .brand-box {
+        .brand-header {
             text-align: center;
             margin-bottom: 35px;
         }
 
-        .brand-logo {
-            font-size: 22px;
-            font-weight: 800;
-            letter-spacing: 1.5px;
-            margin: 0;
-            text-transform: uppercase;
+        .shield-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #10b981, #047857);
+            margin: 0 auto 15px auto;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+            font-weight: bold;
+            font-size: 20px;
         }
 
-        .brand-logo span { color: var(--accent); }
+        .brand-logo {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin: 0;
+        }
+
+        .brand-logo span { color: #10b981; }
 
         .brand-tag {
-            font-size: 11px;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 2px;
+            font-size: 12px;
+            color: var(--text-sub);
             margin-top: 6px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
         }
 
         .form-group {
@@ -66,20 +101,21 @@
 
         label {
             display: block;
-            font-size: 12px;
-            color: var(--text-secondary);
+            font-size: 11px;
+            color: var(--text-sub);
             margin-bottom: 8px;
-            font-weight: 500;
+            font-weight: 600;
             letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
 
         input { 
             width: 100%; 
-            padding: 14px; 
-            background: #030712;
+            padding: 14px 16px; 
+            background: rgba(3, 7, 18, 0.6);
             border: 1px solid var(--border); 
-            color: var(--text-primary);
-            border-radius: 8px; 
+            color: var(--text-main);
+            border-radius: 10px; 
             box-sizing: border-box; 
             font-size: 14px;
             transition: all 0.2s ease;
@@ -87,84 +123,80 @@
 
         input:focus { 
             outline: none; 
-            border-color: var(--accent); 
-            box-shadow: 0 0 0 1px var(--accent);
+            border-color: var(--border-focus); 
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+            background: rgba(3, 7, 18, 0.8);
         }
 
         .btn-action { 
             width: 100%; 
             padding: 14px; 
-            background: #10b981; 
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
             color: white; 
             border: none; 
-            border-radius: 8px; 
+            border-radius: 10px; 
             font-size: 15px; 
             font-weight: 600;
             cursor: pointer; 
-            transition: background 0.2s ease;
+            transition: all 0.2s ease;
             margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
         }
 
-        .btn-action:hover { background: #059669; }
-
-        .error-banner { 
-            background: rgba(239, 68, 68, 0.1); 
-            color: var(--error); 
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            padding: 12px; 
-            border-radius: 8px; 
-            margin-bottom: 24px; 
-            font-size: 13px;
-            text-align: center;
+        .btn-action:hover { 
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%); 
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
         }
 
         .switch-mode {
             text-align: center;
             margin-top: 30px;
             font-size: 13px;
-            color: var(--text-secondary);
+            color: var(--text-sub);
         }
 
         .switch-mode a {
-            color: var(--accent);
+            color: #10b981;
             text-decoration: none;
-            font-weight: 500;
+            font-weight: 600;
         }
-        
-        .switch-mode a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
 
-<div class="brand-box">
-    <div class="brand-logo">Vault<span>Guard</span></div>
-    <div class="brand-tag">Initialize Secure System Credentials</div>
-</div>
+<div class="glow-orb"></div>
+
+<div class="auth-container">
+    <div class="brand-header">
+        <div class="shield-icon">+</div>
+        <div class="brand-logo">Vault<span>Guard</span></div>
+        <div class="brand-tag">Initialize Secure Node</div>
+    </div>
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}
         {% for message in messages %}
-          <div class="error-banner">{{ message }}</div>
+          <div style="background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); padding: 12px; border-radius: 10px; margin-bottom: 24px; font-size: 13px; text-align: center;">{{ message }}</div>
         {% endfor %}
       {% endif %}
     {% endwith %}
 
     <form action="/register" method="POST">
         <div class="form-group">
-            <label>REQUEST USERNAME BOUNDARY</label>
+            <label>Requested Account ID</label>
             <input type="text" name="username" placeholder="Create username" required autocomplete="off">
         </div>
         
         <div class="form-group">
-            <label>CRYPTOGRAPHIC ROOT PASSKEY</label>
-            <input type="password" name="password" placeholder="Create robust password" required>
+            <label>Master Cryptographic Password</label>
+            <input type="password" name="password" placeholder="Create strong password" required>
         </div>
         
-        <button type="submit" class="btn-action">Provision Storage Profile</button>
+        <button type="submit" class="btn-action">Provision Secure Ledger Account</button>
     </form>
 
     <div class="switch-mode">
-        Already registered? <a href="/">Return to session gateway</a>
+        Already verified? <a href="/">Establish Session Entry</a>
     </div>
 </div>
 
