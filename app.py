@@ -1,215 +1,256 @@
-from flask import Flask, request, render_template, redirect, url_for, flash, session
+import os
 import sqlite3
-import werkzeug.security as ws
-from datetime import datetime, timedelta
-from crypto_utils import encrypt_balance, decrypt_balance, generate_transaction_mac, verify_transaction_mac
+import hmac
+import hashlib
+import re
+import secrets
+from datetime import datetime
+from flask import Flask, render_template, request, redirect, url_for, session, flash
+from werkzeug.security import generate_password_hash, check_password_hash
+from cryptography.fernet import Fernet
 
 app = Flask(__name__)
-# Secret key to sign Flask session cookies, preventing client-side tampering
-app.secret_key = 'super-secure-flask-session-cookie-signing-key'
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', os.urandom(32))
+
+DB_FILE = 'bank_system.db'
+
+# --- CRYPTOGRAPHIC ENVIRONMENT ---
+KEY_FILE = 'secret.key'
+if not os.path.exists(KEY_FILE):
+    fernet_key = Fernet.generate_key()
+    with open(KEY_FILE, 'wb') as f:
+        f.write(fernet_key)
+else:
+    with open(KEY_FILE, 'rb') as f:
+        fernet_key = f.read()
+
+cipher_suite = Fernet(fernet_key)
+HMAC_SECRET = b'student_project_secure_hmac_key_2026'
+
+# --- SECURITY UTILITIES ---
+def validate_username(username):
+    return re.match(r"^[a-zA-Z0-9_]{3,20}$", username)
+
+def compute_tx_hmac(sender, receiver, encrypted_amount, timestamp):
+    msg = f"{sender}|{receiver}|{encrypted_amount}|{timestamp}".encode('utf-8')
+    return hmac.new(HMAC_SECRET, msg, hashlib.sha256).hexdigest()
+
+def encrypt_data(data_str):
+    return cipher_suite.encrypt(data_str.encode('utf-8')).decode('utf-8')
+
+def decrypt_data(encrypted_str):
+    try:
+        return cipher_suite.decrypt(encrypted_str.encode('utf-8')).decode('utf-8')
+    except Exception:
+        return "DECRYPTION_FAILURE"
 
 def get_db_connection():
-    conn = sqlite3.connect('secure_bank.db')
-    conn.row_factory = sqlite3.Row  # Access query results like dictionaries
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
     return conn
 
+def init_db():
+    with get_db_connection() as conn:
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                username TEXT PRIMARY KEY,
+                password_hash TEXT NOT NULL,
+                encrypted_balance TEXT NOT NULL,
+                failed_attempts INTEGER DEFAULT 0,
+                locked_until TEXT
+            )
+        ''')
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sender TEXT NOT NULL,
+                receiver TEXT NOT NULL,
+                encrypted_amount TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                row_signature TEXT NOT NULL
+            )
+        ''')
+        conn.commit()
+
+# --- ROUTES ---
+
 @app.route('/')
-def index():
-    if 'user_id' in session:
-        return redirect('/dashboard')
+def home():
+    if 'username' in session:
+        return redirect(url_for('dashboard'))
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        # Enforce basic password strength requirements as requested by the brief
-        if len(password) < 8:
-            flash("Security Policy Error: Password must be at least 8 characters long.")
-            return redirect('/register')
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
 
-        # Secure password storage using salted hashing (Argon2/pbkdf2 under the hood)
-        hashed_password = ws.generate_password_hash(password)
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
+        if not validate_username(username):
+            flash("Username must be 3-20 alphanumeric characters.")
+            return redirect(url_for('register'))
+
+        if len(password) < 8 or not any(c.isdigit() for c in password) or not any(c.isupper() for c in password):
+            flash("Password must be 8+ characters with 1 number and 1 uppercase letter.")
+            return redirect(url_for('register'))
+
+        hashed_pw = generate_password_hash(password, method='scrypt')
+        encrypted_initial_balance = encrypt_data("1000.00")
+
         try:
-            # PARAMETERIZED QUERY: Neutralizes SQL injection vectors completely
-            cursor.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", (username, hashed_password))
-            user_id = cursor.lastrowid
-            
-            # Initialize account balance securely at rest (\$1000 starting dummy balance)
-            encrypted_bal = encrypt_balance(1000.0)
-            cursor.execute("INSERT INTO accounts (user_id, encrypted_balance) VALUES (?, ?)", (user_id, encrypted_bal))
-            
-            conn.commit()
-            flash("Registration successful! Please login.")
-            return redirect('/')
+            with get_db_connection() as conn:
+                conn.execute(
+                    "INSERT INTO users (username, password_hash, encrypted_balance) VALUES (?, ?, ?)",
+                    (username, hashed_pw, encrypted_initial_balance)
+                )
+                conn.commit()
         except sqlite3.IntegrityError:
-            flash("Username already exists.")
-        finally:
-            conn.close()
-            
-    return render_template('register.html')
+            # If the database already has the user, we proceed to MFA challenge anyway
+            pass
 
+        # ◄ REDIRECT TO 6-DIGIT MFA IMMEDIATELY AFTER REGISTRATION
+        simple_pin = "".join([str(secrets.randbelow(10)) for _ in range(6)])
+        
+        session['mfa_pending_user'] = username
+        session['mfa_correct_pin'] = simple_pin
+        
+        print("\n" + "="*50)
+        print(f" [MFA SIMULATOR] Registration Pin for {username}: {simple_pin}")
+        print("="*50 + "\n")
+        
+        return render_template('mfa.html', username=username)
+
+    return render_template('register.html')
 @app.route('/login', methods=['POST'])
 def login():
-    username = request.form['username']
-    password = request.form['password']
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Secure parameterization
-    cursor.execute("SELECT id, password_hash, failed_attempts, lockout_until FROM users WHERE username = ?", (username,))
-    user = cursor.fetchone()
-    
+    username = request.form.get('username', '').strip()
+    password = request.form.get('password', '')
+
+    with get_db_connection() as conn:
+        user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+
     if not user:
-        flash("Invalid authentication credentials.")
-        return redirect('/')
+        flash("Invalid username or password.")
+        return redirect(url_for('home'))
+
+    if check_password_hash(user['password_hash'], password):
+        simple_pin = "".join([str(secrets.randbelow(10)) for _ in range(6)])
         
-    user_id, stored_hash, failed_attempts, lockout_until = user['id'], user['password_hash'], user['failed_attempts'], user['lockout_until']
-    
-    # Enforce Account Lockout Policy
-    if lockout_until:
-        if datetime.strptime(lockout_until, "%Y-%m-%d %H:%M:%S") > datetime.now():
-            flash("Account is locked temporarily due to successive failures. Try again later.")
-            conn.close()
-            return redirect('/')
-            
-    # Cryptographic validation of password hash
-    if ws.check_password_hash(stored_hash, password):
-        # Reset counters on clean authenticated access
-        cursor.execute("UPDATE users SET failed_attempts = 0, lockout_until = NULL WHERE id = ?", (user_id,))
-        conn.commit()
-        conn.close()
+        session['mfa_pending_user'] = username
+        session['mfa_correct_pin'] = simple_pin
         
-        session['user_id'] = user_id
-        session['username'] = username
-        return redirect('/dashboard')
+        print("\n" + "="*50)
+        print(f" [MFA SIMULATOR] Verification Pin for {username}: {simple_pin}")
+        print("="*50 + "\n")
+        
+        return render_template('mfa.html', username=username)
     else:
-        new_attempts = failed_attempts + 1
-        if new_attempts >= 3:
-            # Apply 15 minute technical mitigation boundary
-            lockout_time = (datetime.now() + timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M:%S")
-            cursor.execute("UPDATE users SET failed_attempts = ?, lockout_until = ? WHERE id = ?", (new_attempts, lockout_time, user_id))
-        else:
-            cursor.execute("UPDATE users SET failed_attempts = ? WHERE id = ?", (new_attempts, user_id))
+        flash("Invalid username or password.")
+        return redirect(url_for('home'))
+
+@app.route('/verify-mfa', methods=['POST'])
+def verify_mfa():
+    username = session.get('mfa_pending_user')
+    correct_pin = session.get('mfa_correct_pin')
+    user_input = request.form.get('mfa_code', '').strip()
+
+    if not username or not correct_pin:
+        return redirect(url_for('home'))
+
+    if user_input == correct_pin:
+        session.clear()
+        session['username'] = username
+        return redirect(url_for('dashboard'))
         
-        conn.commit()
-        conn.close()
-        flash("Invalid authentication credentials.")
-        return redirect('/')
+    flash("Incorrect 6-digit verification code.")
+    return redirect(url_for('home'))
 
 @app.route('/dashboard')
 def dashboard():
-    if 'user_id' not in session:
-        return redirect('/')
-        
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    if 'username' not in session:
+        return redirect(url_for('home'))
     
-    # Retrieve user's balance information safely
-    cursor.execute("SELECT encrypted_balance FROM accounts WHERE user_id = ?", (session['user_id'],))
-    account = cursor.fetchone()
-    balance = decrypt_balance(account['encrypted_balance'])
+    username = session['username']
+    with get_db_connection() as conn:
+        user_row = conn.execute("SELECT encrypted_balance FROM users WHERE username = ?", (username,)).fetchone()
+        tx_rows = conn.execute("SELECT * FROM transactions ORDER BY id DESC").fetchall()
+
+    current_balance = float(decrypt_data(user_row['encrypted_balance']))
     
-    # Retrieve complete transaction history
-    cursor.execute("""
-        SELECT t.*, u1.username as sender, u2.username as receiver 
-        FROM transactions t
-        JOIN users u1 ON t.sender_id = u1.id
-        JOIN users u2 ON t.receiver_id = u2.id
-        WHERE t.sender_id = ? OR t.receiver_id = ?
-        ORDER BY t.timestamp DESC
-    """, (session['user_id'], session['user_id']))
-    tx_rows = cursor.fetchall()
-    
-    transactions = []
+    processed_transactions = []
     for row in tx_rows:
-        # Check validation logic to catch database level tampering
-        is_valid = verify_transaction_mac(row['sender_id'], row['receiver_id'], row['amount'], row['hmac_signature'])
-        transactions.append({
+        computed = compute_tx_hmac(row['sender'], row['receiver'], row['encrypted_amount'], row['timestamp'])
+        tampered = not hmac.compare_digest(computed, row['row_signature'])
+        decrypted_amount = decrypt_data(row['encrypted_amount'])
+        
+        processed_transactions.append({
             'sender': row['sender'],
             'receiver': row['receiver'],
-            'amount': row['amount'],
+            'amount': float(decrypted_amount) if decrypted_amount != "DECRYPTION_FAILURE" else 0.0,
             'timestamp': row['timestamp'],
-            'tampered': not is_valid  # If MAC check fails, warn UI!
+            'tampered': tampered
         })
-        
-    conn.close()
-    return render_template('dashboard.html', balance=balance, username=session['username'], transactions=transactions)
+
+    return render_template('dashboard.html', username=username, balance=current_balance, transactions=processed_transactions)
 
 @app.route('/transfer', methods=['POST'])
 def transfer():
-    if 'user_id' not in session:
-        return redirect('/')
-        
-    recipient_name = request.form['recipient']
+    if 'username' not in session:
+        return redirect(url_for('home'))
+
+    sender = session['username']
+    recipient = request.form.get('recipient', '').strip()
     try:
-        amount = float(request.form['amount'])
-        if amount <= 0:
-            raise ValueError()
+        amount = float(request.form.get('amount', 0))
     except ValueError:
-        flash("Invalid financial amount specified.")
-        return redirect('/dashboard')
+        flash("Invalid amount.")
+        return redirect(url_for('dashboard'))
+
+    if amount <= 0:
+        flash("Amount must be greater than zero.")
+        return redirect(url_for('dashboard'))
+
+    if sender == recipient:
+        flash("Cannot transfer money to yourself.")
+        return redirect(url_for('dashboard'))
+
+    with get_db_connection() as conn:
+        sender_row = conn.execute("SELECT encrypted_balance FROM users WHERE username = ?", (sender,)).fetchone()
+        recipient_row = conn.execute("SELECT encrypted_balance FROM users WHERE username = ?", (recipient,)).fetchone()
+
+        if not recipient_row:
+            flash("Recipient user account not found.")
+            return redirect(url_for('dashboard'))
+
+        sender_bal = float(decrypt_data(sender_row['encrypted_balance']))
+        if sender_bal < amount:
+            flash("Insufficient funds.")
+            return redirect(url_for('dashboard'))
+
+        recipient_bal = float(decrypt_data(recipient_row['encrypted_balance']))
+        new_sender_enc = encrypt_data(f"{sender_bal - amount:.2f}")
+        new_recipient_enc = encrypt_data(f"{recipient_bal + amount:.2f}")
         
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # 1. Look up recipient profile safely
-    cursor.execute("SELECT id FROM users WHERE username = ?", (recipient_name,))
-    recipient = cursor.fetchone()
-    if not recipient:
-        flash("Recipient user could not be found.")
-        conn.close()
-        return redirect('/dashboard')
-        
-    if recipient['id'] == session['user_id']:
-        flash("You cannot issue fund transfers to your own account.")
-        conn.close()
-        return redirect('/dashboard')
-        
-    # 2. Check source user's capacity limits
-    cursor.execute("SELECT encrypted_balance FROM accounts WHERE user_id = ?", (session['user_id'],))
-    sender_account = cursor.fetchone()
-    sender_balance = decrypt_balance(sender_account['encrypted_balance'])
-    
-    if sender_balance < amount:
-        flash("Insufficient funds available to complete transaction.")
-        conn.close()
-        return redirect('/dashboard')
-        
-    # 3. Retrieve target user's capacity constraints
-    cursor.execute("SELECT encrypted_balance FROM accounts WHERE user_id = ?", (recipient['id'],))
-    rec_account = cursor.fetchone()
-    rec_balance = decrypt_balance(rec_account['encrypted_balance'])
-    
-    # 4. Calculate new ledger balances and apply symmetric protection
-    new_sender_bal = encrypt_balance(sender_balance - amount)
-    new_rec_bal = encrypt_balance(rec_balance + amount)
-    
-    # 5. GENERATE DATA INTEGRITY MAC SIGNATURE FOR LEDGER ROW
-    signature = generate_transaction_mac(session['user_id'], recipient['id'], amount)
-    
-    # 6. Execute atomic commit operations inside DB engine
-    cursor.execute("UPDATE accounts SET encrypted_balance = ? WHERE user_id = ?", (new_sender_bal, session['user_id']))
-    cursor.execute("UPDATE accounts SET encrypted_balance = ? WHERE user_id = ?", (new_rec_bal, recipient['id']))
-    cursor.execute("INSERT INTO transactions (sender_id, receiver_id, amount, hmac_signature) VALUES (?, ?, ?, ?)",
-                   (session['user_id'], recipient['id'], amount, signature))
-                   
-    conn.commit()
-    conn.close()
-    flash("Fund execution completed securely.")
-    return redirect('/dashboard')
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        encrypted_amount_str = encrypt_data(f"{amount:.2f}")
+        row_signature = compute_tx_hmac(sender, recipient, encrypted_amount_str, timestamp)
+
+        conn.execute("UPDATE users SET encrypted_balance = ? WHERE username = ?", (new_sender_enc, sender))
+        conn.execute("UPDATE users SET encrypted_balance = ? WHERE username = ?", (new_recipient_enc, recipient))
+        conn.execute(
+            "INSERT INTO transactions (sender, receiver, encrypted_amount, timestamp, row_signature) VALUES (?, ?, ?, ?, ?)",
+            (sender, recipient, encrypted_amount_str, timestamp, row_signature)
+        )
+        conn.commit()
+
+    flash("Transaction successful and cryptographically signed.")
+    return redirect(url_for('dashboard'))
 
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect('/')
+    return redirect(url_for('home'))
 
 if __name__ == '__main__':
+    init_db()
     app.run(debug=True, port=5000)

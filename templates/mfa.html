@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VaultGuard // Academic MFA</title>
+    <style>
+        :root {
+            --bg-base: #060913;
+            --glass-card: rgba(13, 20, 38, 0.7);
+            --border: rgba(255, 255, 255, 0.08);
+            --border-focus: #0ea5e9;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            background-color: var(--bg-base); 
+            color: var(--text-main);
+            margin: 0; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .auth-container {
+            width: 100%; max-width: 400px;
+            background: var(--glass-card); backdrop-filter: blur(16px);
+            padding: 40px; border-radius: 20px; border: 1px solid var(--border);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+        }
+        .brand-header { text-align: center; margin-bottom: 25px; }
+        .mfa-icon {
+            width: 44px; height: 44px;
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            margin: 0 auto 15px auto; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 20px;
+        }
+        .form-group { margin-bottom: 24px; }
+        label { display: block; font-size: 11px; color: var(--text-sub); margin-bottom: 8px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; text-align: center; }
+        input { 
+            width: 100%; padding: 14px 16px; background: rgba(3, 7, 18, 0.6);
+            border: 1px solid var(--border); color: var(--text-main);
+            border-radius: 10px; box-sizing: border-box; font-size: 22px;
+            text-align: center; letter-spacing: 8px; transition: all 0.2s ease;
+        }
+        input:focus { outline: none; border-color: var(--border-focus); box-shadow: 0 0 15px rgba(14, 165, 233, 0.2); }
+        .btn-action { 
+            width: 100%; padding: 14px; background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%); 
+            color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .info-note {
+            text-align: center; color: var(--text-sub); font-size: 12px; margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="auth-container">
+    <div class="brand-header">
+        <div class="mfa-icon">🛡️</div>
+        <h2 style="margin: 0; font-size: 22px;">Security Verification</h2>
+        <p style="color: var(--text-sub); font-size: 14px; margin: 5px 0 0 0;">Dynamic 2FA Enabled</p>
+    </div>
+
+    <form action="/verify-mfa" method="POST">
+        <div class="form-group">
+            <label>Enter 6-Digit Passcode</label>
+            <input type="text" name="mfa_code" placeholder="000000" maxlength="6" required autocomplete="off" autofocus>
+        </div>
+        <button type="submit" class="btn-action">Verify Code</button>
+    </form>
+    
+    <div class="info-note">
+        (For evaluation: Check your running Python terminal console to copy the generated pin)
+    </div>
+</div>
+
+</body>
+</html>
