@@ -1,22 +1,25 @@
 import os
-import sys
 import subprocess
+import sys
 
 def main():
-    print("=== VaultGuard Academic Platform Launcher ===")
-
-    try:
-        from app import init_db
-    except ImportError:
-        print("\n[-] Error: Missing application components.")
-        sys.exit(1)
+    print("[+] Gisma B207 Automation Environment Launcher Engaged...")
     
-    print("[*] Instantiating empty secure database schema...")
-    init_db()
-    print("[+] Complete. No mock records injected.")
+    # 1. Automatically initialize database structure if missing
+    if not os.path.exists('bank_system.db'):
+        print("[*] Database not found. Initializing secure database schemas...")
+        # If your initialization logic is inside db_init.py, run it:
+        if os.path.exists('db_init.py'):
+            subprocess.run([sys.executable, 'db_init.py'])
+    else:
+        print("[✓] Secure ledger database detected.")
 
-    print("\n[+] Web server live. Booting microkernel framework...")
-    subprocess.check_call([sys.executable, "-m", "flask", "run", "--port=5000"])
+    # 2. Fire up the central Flask application server
+    print("[*] Spinning up local web application port node...")
+    try:
+        subprocess.run([sys.executable, 'app.py'])
+    except KeyboardInterrupt:
+        print("\n[-] Server session terminated gracefully.")
 
 if __name__ == '__main__':
     main()

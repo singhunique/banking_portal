@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VaultGuard Terminal</title>
+    <title>Targo Bank Dashboard</title>
     <style>
         :root {
             --bg-base: #060913;
@@ -14,6 +14,7 @@
             --neon-blue: #38bdf8;
             --neon-green: #4ade80;
             --neon-red: #f87171;
+            --neon-amber: #f59e0b;
         }
 
         body { 
@@ -114,7 +115,7 @@
         }
 
         .card-panel h3 {
-            margin-0: 0;
+            margin: 0;
             margin-top: 0;
             font-size: 12px;
             font-weight: 700;
@@ -293,6 +294,35 @@
     {% endwith %}
 </div>
 
+{% if session.get('show_tx_verification') %}
+<div class="profile-section" style="background: rgba(245, 158, 11, 0.05); border: 1.5px dashed var(--neon-amber); padding: 25px; border-radius: 16px; margin-bottom: 30px; box-shadow: 0 0 25px rgba(245, 158, 11, 0.05);">
+    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+        <div style="width: 50px; height: 50px; background: linear-gradient(135deg, var(--neon-amber), #b45309); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: black;">
+            ⚠️
+        </div>
+        <div>
+            <h3 style="margin: 0; font-size: 18px; color: var(--neon-amber); text-transform: none; letter-spacing: normal;">Transaction Security Authorization Required</h3>
+            <p style="margin: 5px 0 0 0; font-size: 13px; color: var(--text-sub);">
+                Processing outbound transfer of <strong style="color: var(--text-main);">${{ "%.2f"|format(session.get('pending_tx', {}).get('amount', 0)) }}</strong> to account node <strong style="color: var(--neon-blue);">{{ session.get('pending_tx', {}).get('recipient') }}</strong>.
+            </p>
+        </div>
+    </div>
+    
+    <hr style="border: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 15px 0;">
+    
+    <form action="/transfer" method="POST" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+        <div style="flex-grow: 1; max-width: 250px;">
+            <label style="margin-bottom: 6px;">Terminal Verification Pin</label>
+            <input type="text" name="tx_code" placeholder="000000" maxlength="6" required autocomplete="off" autofocus
+                   style="margin-bottom: 0; padding: 12px; border-color: rgba(245, 158, 11, 0.3); text-align: center; font-size: 16px; letter-spacing: 4px; font-weight: bold;">
+        </div>
+        <button type="submit" class="btn-send" style="width: auto; background: linear-gradient(135deg, var(--neon-amber) 0%, #d97706 100%); color: black; font-weight: 700; padding: 12px 30px; margin-top: 18px; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.15);">
+            Authorize Ledger Entry
+        </button>
+    </form>
+</div>
+{% set _ = session.pop('show_tx_verification', None) %}
+{% endif %}
 
 <div class="profile-section" style="background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255, 255, 255, 0.08); padding: 25px; border-radius: 16px; margin-bottom: 30px;">
     <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
@@ -300,7 +330,7 @@
             {{ username[0] | upper }}
         </div>
         <div>
-            <h3 style="margin: 0; font-size: 18px; color: #f8fafc;">Account Profile</h3>
+            <h3 style="margin: 0; font-size: 18px; color: #f8fafc; text-transform: none; letter-spacing: normal;">Account Profile</h3>
             <p style="margin: 0; font-size: 13px; color: #94a3b8;">Security Status: <span style="color: #4ade80; font-weight: 600;">● Verified</span></p>
         </div>
     </div>
@@ -324,14 +354,13 @@
 </div>
 
 <div class="grid-main">
-    <!-- Left Hand Command Area -->
     <div class="card-panel">
         <h3>Total Balance</h3>
         <div class="balance-glow-box">
             <div class="balance-amount">${{ "%.2f"|format(balance) }}</div>
             <div class="balance-caption">
                 <span style="display:inline-block; width:6px; height:6px; background:var(--neon-blue); border-radius:50%;"></span>
-                </div>
+            </div>
         </div>
         
         <h3 style="margin-top: 40px;">Make transfer to another user</h3>
@@ -346,7 +375,6 @@
         </form>
     </div>
 
-    <!-- Right Hand Blockchain Style Audit Ledger -->
     <div class="card-panel">
         <h3>History</h3>
         <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 25px; line-height: 1.6;">
@@ -356,11 +384,11 @@
         <table>
             <thead>
                 <tr>
-                    <th>Origin of transaction </th>
+                    <th>Origin of transaction</th>
                     <th>Destination Node</th>
                     <th>Amount</th>
-                    <th>Timestamp Logging</th>
-                    <th>Ledger Integrity Matrix</th>
+                    <th>Date and Time</th>
+                    <th>Security Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -380,7 +408,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" style="text-align: center; color: var(--text-sub); padding: 60px 0;">No cryptographically verified records present in live system.</td>
+                    <td colspan="5" style="text-align: center; color: var(--text-sub); padding: 60px 0;">No verified records</td>
                 </tr>
                 {% endfor %}
             </tbody>

@@ -199,6 +199,57 @@ def transfer():
         return redirect(url_for('home'))
 
     sender = session['username']
+    
+    # 1. Check if the user is submitting the 6-digit verification code
+    tx_code_input = request.form.get('tx_code', '').strip()
+    
+    if tx_code_input:
+        # Pull the saved transaction data and correct PIN from the session
+        pending_tx = session.get('pending_tx')
+        correct_tx_pin = session.get('pending_tx_pin')
+        
+        if not pending_tx or not correct_tx_pin:
+            flash("Transaction expired or session lost. Please try again.")
+            return redirect(url_for('dashboard'))
+            
+        if tx_code_input == correct_tx_pin:
+            # Code matches! Process the transaction securely in the database
+            recipient = pending_tx['recipient']
+            amount = pending_tx['amount']
+            
+            with get_db_connection() as conn:
+                sender_row = conn.execute("SELECT encrypted_balance FROM users WHERE username = ?", (sender,)).fetchone()
+                recipient_row = conn.execute("SELECT encrypted_balance FROM users WHERE username = ?", (recipient,)).fetchone()
+
+                sender_bal = float(decrypt_data(sender_row['encrypted_balance']))
+                recipient_bal = float(decrypt_data(recipient_row['encrypted_balance']))
+                
+                new_sender_enc = encrypt_data(f"{sender_bal - amount:.2f}")
+                new_recipient_enc = encrypt_data(f"{recipient_bal + amount:.2f}")
+                
+                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                encrypted_amount_str = encrypt_data(f"{amount:.2f}")
+                row_signature = compute_tx_hmac(sender, recipient, encrypted_amount_str, timestamp)
+
+                conn.execute("UPDATE users SET encrypted_balance = ? WHERE username = ?", (new_sender_enc, sender))
+                conn.execute("UPDATE users SET encrypted_balance = ? WHERE username = ?", (new_recipient_enc, recipient))
+                conn.execute(
+                    "INSERT INTO transactions (sender, receiver, encrypted_amount, timestamp, row_signature) VALUES (?, ?, ?, ?, ?)",
+                    (sender, recipient, encrypted_amount_str, timestamp, row_signature)
+                )
+                conn.commit()
+                
+            # Clean up transaction variables from session
+            session.pop('pending_tx', None)
+            session.pop('pending_tx_pin', None)
+            
+            flash("Transaction authorized and sent successfully!")
+            return redirect(url_for('dashboard'))
+        else:
+            flash("Incorrect transaction code. Security lock engaged.")
+            return redirect(url_for('dashboard'))
+
+    # 2. First-time click: Get inputs, check balances, and generate terminal code
     recipient = request.form.get('recipient', '').strip()
     try:
         amount = float(request.form.get('amount', 0))
@@ -227,23 +278,22 @@ def transfer():
             flash("Insufficient funds.")
             return redirect(url_for('dashboard'))
 
-        recipient_bal = float(decrypt_data(recipient_row['encrypted_balance']))
-        new_sender_enc = encrypt_data(f"{sender_bal - amount:.2f}")
-        new_recipient_enc = encrypt_data(f"{recipient_bal + amount:.2f}")
-        
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        encrypted_amount_str = encrypt_data(f"{amount:.2f}")
-        row_signature = compute_tx_hmac(sender, recipient, encrypted_amount_str, timestamp)
-
-        conn.execute("UPDATE users SET encrypted_balance = ? WHERE username = ?", (new_sender_enc, sender))
-        conn.execute("UPDATE users SET encrypted_balance = ? WHERE username = ?", (new_recipient_enc, recipient))
-        conn.execute(
-            "INSERT INTO transactions (sender, receiver, encrypted_amount, timestamp, row_signature) VALUES (?, ?, ?, ?, ?)",
-            (sender, recipient, encrypted_amount_str, timestamp, row_signature)
-        )
-        conn.commit()
-
-    flash("Transaction successful and cryptographically signed.")
+    # Everything looks valid, create a 6-digit confirmation pin
+    tx_pin = "".join([str(secrets.randbelow(10)) for _ in range(6)])
+    
+    # Save transfer parameters into the session temporary memory
+    session['pending_tx'] = {'recipient': recipient, 'amount': amount}
+    session['pending_tx_pin'] = tx_pin
+    
+    # ◄ PRINT THE TRANSACTION CODE DIRECTLY TO THE TERMINAL CONSOLE
+    print("\n" + "!"*60)
+    print(f" [TRANSACTION GUARD] Action requested by {sender}")
+    print(f" Sending: ${amount:.2f} to -> {recipient}")
+    print(f" ENTER CODE TO CONFIRM SECURITY AUTHORIZATION: {tx_pin}")
+    print("!"*60 + "\n")
+    
+    # Reload dashboard but tell the template to display the verification popup form box
+    session['show_tx_verification'] = True
     return redirect(url_for('dashboard'))
 
 @app.route('/logout')
