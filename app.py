@@ -27,7 +27,7 @@ else:
 cipher_suite = Fernet(fernet_key)
 HMAC_SECRET = b'student_project_secure_hmac_key_2026'
 
-# --- SECURITY UTILITIES ---
+# --- SECURITY resources
 def validate_username(username):
     return re.match(r"^[a-zA-Z0-9_]{3,20}$", username)
 
@@ -105,10 +105,10 @@ def register():
                 )
                 conn.commit()
         except sqlite3.IntegrityError:
-            # If the database already has the user, we proceed to MFA challenge anyway
+          
             pass
 
-        # ◄ REDIRECT TO 6-DIGIT MFA IMMEDIATELY AFTER REGISTRATION
+     
         simple_pin = "".join([str(secrets.randbelow(10)) for _ in range(6)])
         
         session['mfa_pending_user'] = username
@@ -204,7 +204,7 @@ def transfer():
     tx_code_input = request.form.get('tx_code', '').strip()
     
     if tx_code_input:
-        # Pull the saved transaction data and correct PIN from the session
+        
         pending_tx = session.get('pending_tx')
         correct_tx_pin = session.get('pending_tx_pin')
         
@@ -213,7 +213,7 @@ def transfer():
             return redirect(url_for('dashboard'))
             
         if tx_code_input == correct_tx_pin:
-            # Code matches! Process the transaction securely in the database
+           
             recipient = pending_tx['recipient']
             amount = pending_tx['amount']
             
@@ -239,7 +239,7 @@ def transfer():
                 )
                 conn.commit()
                 
-            # Clean up transaction variables from session
+            
             session.pop('pending_tx', None)
             session.pop('pending_tx_pin', None)
             
@@ -278,21 +278,21 @@ def transfer():
             flash("Insufficient funds.")
             return redirect(url_for('dashboard'))
 
-    # Everything looks valid, create a 6-digit confirmation pin
+
     tx_pin = "".join([str(secrets.randbelow(10)) for _ in range(6)])
     
-    # Save transfer parameters into the session temporary memory
+   
     session['pending_tx'] = {'recipient': recipient, 'amount': amount}
     session['pending_tx_pin'] = tx_pin
     
-    # ◄ PRINT THE TRANSACTION CODE DIRECTLY TO THE TERMINAL CONSOLE
+    
     print("\n" + "!"*60)
     print(f" [TRANSACTION GUARD] Action requested by {sender}")
     print(f" Sending: ${amount:.2f} to -> {recipient}")
     print(f" ENTER CODE TO CONFIRM SECURITY AUTHORIZATION: {tx_pin}")
     print("!"*60 + "\n")
     
-    # Reload dashboard but tell the template to display the verification popup form box
+    
     session['show_tx_verification'] = True
     return redirect(url_for('dashboard'))
 

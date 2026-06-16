@@ -17,7 +17,7 @@ def initialize_database():
         lockout_until TEXT
     )''')
 
-    # Accounts Table: Balances are strings because they store ENCRYPTED text
+
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS accounts (
         account_id INTEGER PRIMARY KEY AUTOINCREMENT,
