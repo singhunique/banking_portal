@@ -7,7 +7,7 @@ def initialize_database():
 
     print("Creating database tables...")
 
-    # Users Table: Notice fields for Account Lockout policy
+   
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,7 +26,7 @@ def initialize_database():
         FOREIGN KEY(user_id) REFERENCES users(id)
     )''')
 
-    # Transactions Table: Includes the HMAC signature field
+   
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS transactions (
         transaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
