@@ -164,3 +164,40 @@
 </head>
 <body>
 
+<div class="glow-orb"></div>
+<div class="auth-container">
+    <div class="brand-header">
+        <div class="shield-icon">+</div>
+        <div class="brand-logo">Targo<span>Bank</span></div>
+        <div class="brand-tag">Banking made easy</div>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for message in messages %}
+          <div style="background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); padding: 12px; border-radius: 10px; margin-bottom: 24px; font-size: 13px; text-align: center;">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form action="/register" method="POST">
+        <div class="form-group">
+            <label>New Username</label>
+            <input type="text" name="username" placeholder="Create username" required autocomplete="off">
+        </div>
+        
+        <div class="form-group">
+            <label> New Password</label>
+            <input type="password" name="password" placeholder="Create strong password" required>
+        </div>
+        
+        <button type="submit" class="btn-action">Register account</button>
+    </form>
+
+    <div class="switch-mode">
+        Already verified? <a href="/">Login user</a>
+    </div>
+</div>
+
+</body>
+</html>
